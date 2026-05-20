@@ -50,6 +50,7 @@ model Gathering {
   place      String
   type       String
   tags       String   // カンマ区切り
+  deadline   DateTime?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

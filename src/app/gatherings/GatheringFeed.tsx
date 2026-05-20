@@ -8,8 +8,9 @@ import { getAvatarUrl } from "@/lib/avatar";
 
 export default function GatheringFeed({ gatherings, currentUserId }: { gatherings: any[], currentUserId: number }) {
   const [filterType, setFilterType] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('active');
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ title: '', date: '', place: '', type: 'ご飯 (ランチ/ディナー)', tags: '' });
+  const [formData, setFormData] = useState({ title: '', date: '', place: '', type: 'ご飯 (ランチ/ディナー)', tags: '', deadline: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -17,16 +18,45 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
     setMounted(true);
   }, []);
 
-  const filteredGatherings = filterType === 'all' 
-    ? gatherings 
-    : gatherings.filter(g => g.type.includes(filterType));
+  const now = new Date();
+  
+  const processedGatherings = gatherings.filter(g => {
+    if (!g.deadline) return true;
+    const deadline = new Date(g.deadline);
+    const msSinceDeadline = now.getTime() - deadline.getTime();
+    const hoursSinceDeadline = msSinceDeadline / (1000 * 60 * 60);
+    // 期限から24時間以上経ったものは除外
+    if (hoursSinceDeadline >= 24) return false;
+    return true;
+  }).map(g => {
+    let isEnded = false;
+    if (g.deadline) {
+      const deadline = new Date(g.deadline);
+      isEnded = now.getTime() > deadline.getTime();
+    }
+    return { ...g, isEnded };
+  });
+
+  const filteredGatherings = processedGatherings.filter(g => {
+    if (filterType !== 'all' && !g.type.includes(filterType)) return false;
+    
+    if (statusFilter === 'active' && g.isEnded) return false;
+    if (statusFilter === 'ended' && !g.isEnded) return false;
+    
+    return true;
+  }).sort((a, b) => {
+    if (a.isEnded === b.isEnded) {
+       return b.id - a.id; 
+    }
+    return a.isEnded ? 1 : -1;
+  });
 
   const handleCreate = async () => {
     if (!formData.title || !formData.date || !formData.place) return;
     setIsSubmitting(true);
     await createGathering(currentUserId, formData);
     setShowModal(false);
-    setFormData({ title: '', date: '', place: '', type: 'ご飯 (ランチ/ディナー)', tags: '' });
+    setFormData({ title: '', date: '', place: '', type: 'ご飯 (ランチ/ディナー)', tags: '', deadline: '' });
     setIsSubmitting(false);
   };
 
@@ -46,6 +76,12 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
           <button className={`tab ${filterType === 'all' ? 'active' : ''}`} onClick={() => setFilterType('all')}>すべて</button>
           <button className={`tab ${filterType === 'ご飯' ? 'active' : ''}`} onClick={() => setFilterType('ご飯')}>ご飯 (ランチ/ディナー)</button>
           <button className={`tab ${filterType === '飲み会' ? 'active' : ''}`} onClick={() => setFilterType('飲み会')}>飲み会</button>
+          
+          <select className="form-input" style={{ marginLeft: '1rem', padding: '0.3rem 0.5rem', width: 'auto' }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="active">募集中のみ</option>
+            <option value="ended">募集終了のみ</option>
+            <option value="all">両方（すべて）</option>
+          </select>
         </div>
         <button className="primary-btn" onClick={() => setShowModal(true)}><Plus /> 募集する</button>
       </div>
@@ -59,16 +95,18 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
             <div className="card gathering-full-card" key={g.id}>
               <div className="gathering-header">
                 <div>
-                  <h2>{g.title}</h2>
+                  <h2 style={{ color: g.isEnded ? 'var(--text-muted)' : 'inherit' }}>
+                    {g.title} {g.isEnded && <span style={{ fontSize: '0.9rem', color: '#dc2626', fontWeight: 'bold', marginLeft: '0.5rem' }}>募集終了</span>}
+                  </h2>
                   <div className="tags-container" style={{ justifyContent: 'flex-start', marginTop: '0.5rem', marginBottom: 0 }}>
-                    {g.tags.split(',').filter((t: string) => t.trim()).map((tag: string) => <span className="tag" key={tag}>{tag.trim()}</span>)}
+                    {g.tags.split(',').filter((t: string) => t.trim()).map((tag: string) => <span className="tag" key={tag} style={{ opacity: g.isEnded ? 0.6 : 1 }}>{tag.trim()}</span>)}
                   </div>
                 </div>
-                <span className="badge active">{g.type}</span>
+                <span className={`badge ${g.isEnded ? '' : 'active'}`} style={{ backgroundColor: g.isEnded ? '#e2e8f0' : undefined, color: g.isEnded ? '#64748b' : undefined }}>{g.type}</span>
               </div>
               
-              <div className="gathering-details">
-                <div><Calendar /> {g.date}</div>
+              <div className="gathering-details" style={{ opacity: g.isEnded ? 0.6 : 1 }}>
+                <div><Calendar /> {g.date} {g.deadline && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>(期限: {new Date(g.deadline).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span>}</div>
                 <div><MapPin /> {g.place}</div>
                 <div><Users /> {g.members.length}人が参加予定</div>
               </div>
@@ -88,12 +126,14 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
                 <button 
                   className="primary-btn" 
                   style={{ 
-                    background: isJoined ? 'var(--surface-dark)' : 'var(--primary)', 
-                    color: isJoined ? 'var(--text-muted)' : 'white' 
+                    background: g.isEnded && !isJoined ? 'var(--surface-dark)' : (isJoined ? 'var(--surface-dark)' : 'var(--primary)'), 
+                    color: g.isEnded && !isJoined ? 'var(--text-muted)' : (isJoined ? 'var(--text-muted)' : 'white'),
+                    cursor: g.isEnded && !isJoined ? 'not-allowed' : 'pointer'
                   }}
                   onClick={() => handleToggleJoin(g)}
+                  disabled={g.isEnded && !isJoined}
                 >
-                  {isJoined ? '参加キャンセル' : '参加する'}
+                  {isJoined ? '参加キャンセル' : (g.isEnded ? '終了しました' : '参加する')}
                 </button>
               </div>
             </div>
@@ -129,6 +169,10 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
               <div className="form-group">
                 <label>場所</label>
                 <input type="text" className="form-input" placeholder="例: 学食 または 駅前食堂" value={formData.place} onChange={e => setFormData({...formData, place: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>募集期限 (任意)</label>
+                <input type="datetime-local" className="form-input" value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} />
               </div>
               <div className="form-group">
                 <label>対象となる趣味や条件タグ (カンマ区切り)</label>
