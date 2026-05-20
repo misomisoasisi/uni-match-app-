@@ -177,7 +177,7 @@ export async function createGathering(creatorId: number, data: {
   await prisma.gathering.create({
     data: {
       ...rest,
-      deadline: deadline ? new Date(deadline) : null,
+      deadline: (deadline && deadline.trim() !== '') ? new Date(deadline) : null,
       members: {
         connect: { id: creatorId }
       }

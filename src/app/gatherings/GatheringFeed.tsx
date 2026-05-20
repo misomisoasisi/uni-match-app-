@@ -8,7 +8,8 @@ import { getAvatarUrl } from "@/lib/avatar";
 
 export default function GatheringFeed({ gatherings, currentUserId }: { gatherings: any[], currentUserId: number }) {
   const [filterType, setFilterType] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('active');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ title: '', date: '', place: '', type: 'ご飯 (ランチ/ディナー)', tags: '', deadline: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,10 +55,25 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
   const handleCreate = async () => {
     if (!formData.title || !formData.date || !formData.place) return;
     setIsSubmitting(true);
-    await createGathering(currentUserId, formData);
-    setShowModal(false);
-    setFormData({ title: '', date: '', place: '', type: 'ご飯 (ランチ/ディナー)', tags: '', deadline: '' });
-    setIsSubmitting(false);
+    try {
+      await createGathering(currentUserId, formData);
+      setShowModal(false);
+      setFormData({ title: '', date: '', place: '', type: 'ご飯 (ランチ/ディナー)', tags: '', deadline: '' });
+    } catch (e) {
+      console.error(e);
+      alert("エラーが発生しました");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+    if (dateString.includes("T")) {
+      const d = new Date(dateString);
+      return `${d.getMonth()+1}月${d.getDate()}日 ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}〜`;
+    }
+    return dateString;
   };
 
   const handleToggleJoin = async (gathering: any) => {
@@ -71,19 +87,55 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
 
   return (
     <>
-      <div className="action-bar">
-        <div className="filter-tabs">
-          <button className={`tab ${filterType === 'all' ? 'active' : ''}`} onClick={() => setFilterType('all')}>すべて</button>
-          <button className={`tab ${filterType === 'ご飯' ? 'active' : ''}`} onClick={() => setFilterType('ご飯')}>ご飯 (ランチ/ディナー)</button>
-          <button className={`tab ${filterType === '飲み会' ? 'active' : ''}`} onClick={() => setFilterType('飲み会')}>飲み会</button>
-          
-          <select className="form-input" style={{ marginLeft: '1rem', padding: '0.3rem 0.5rem', width: 'auto' }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="active">募集中のみ</option>
-            <option value="ended">募集終了のみ</option>
-            <option value="all">両方（すべて）</option>
-          </select>
-        </div>
+      <div className="action-bar" style={{ justifyContent: 'space-between' }}>
+        <button className="text-btn" onClick={() => setIsFilterOpen(!isFilterOpen)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', color: 'var(--text-main)' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg> 
+          絞り込み
+        </button>
         <button className="primary-btn" onClick={() => setShowModal(true)}><Plus /> 募集する</button>
+      </div>
+
+      <div className={`filter-panel-wrapper ${isFilterOpen ? 'open' : 'closed'}`}>
+        <div className="filter-header">
+          <h3>絞り込み</h3>
+          <button className="filter-clear-btn" onClick={() => { setFilterType('all'); setStatusFilter('all'); }}>クリア</button>
+        </div>
+        
+        <div className="filter-section">
+          <div className="filter-section-title">カテゴリー</div>
+          <div className="filter-options">
+            <label className="custom-radio">
+              <input type="radio" name="category" checked={filterType === 'all'} onChange={() => setFilterType('all')} />
+              すべて
+            </label>
+            <label className="custom-radio">
+              <input type="radio" name="category" checked={filterType === 'ご飯'} onChange={() => setFilterType('ご飯')} />
+              ご飯 (ランチ/ディナー)
+            </label>
+            <label className="custom-radio">
+              <input type="radio" name="category" checked={filterType === '飲み会'} onChange={() => setFilterType('飲み会')} />
+              飲み会
+            </label>
+          </div>
+        </div>
+
+        <div className="filter-section">
+          <div className="filter-section-title">販売状況 (募集状況)</div>
+          <div className="filter-options">
+            <label className="custom-radio">
+              <input type="checkbox" checked={statusFilter === 'all'} onChange={() => setStatusFilter('all')} />
+              すべて
+            </label>
+            <label className="custom-radio">
+              <input type="checkbox" checked={statusFilter === 'active'} onChange={() => setStatusFilter('active')} />
+              募集中
+            </label>
+            <label className="custom-radio">
+              <input type="checkbox" checked={statusFilter === 'ended'} onChange={() => setStatusFilter('ended')} />
+              募集終了
+            </label>
+          </div>
+        </div>
       </div>
       
       <div className="gathering-feed">
@@ -106,7 +158,7 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
               </div>
               
               <div className="gathering-details" style={{ opacity: g.isEnded ? 0.6 : 1 }}>
-                <div><Calendar /> {g.date} {g.deadline && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>(期限: {new Date(g.deadline).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span>}</div>
+                <div><Calendar /> {formatDate(g.date)} {g.deadline && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>(期限: {new Date(g.deadline).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</span>}</div>
                 <div><MapPin /> {g.place}</div>
                 <div><Users /> {g.members.length}人が参加予定</div>
               </div>
@@ -163,8 +215,8 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
                 </select>
               </div>
               <div className="form-group">
-                <label>日時</label>
-                <input type="text" className="form-input" placeholder="例: 10/25(水) 12:15〜" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
+                <label>開催日時</label>
+                <input type="datetime-local" className="form-input" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
               </div>
               <div className="form-group">
                 <label>場所</label>
