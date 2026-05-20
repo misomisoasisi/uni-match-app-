@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  name       String
+  dept       String
+  char       String   // MBTI等
+  tags       String   // カンマ区切り
+  color      String
+  feature    String   // アバターのカスタマイズ特徴
+  email      String   @unique
+  password   String
+  gender     String?  // 男女などの性別
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  textbooks  Textbook[]
+  gatherings Gathering[] @relation("GatheringMembers")
+  buyerRooms ChatRoom[]  @relation("BuyerRooms")
+  sellerRooms ChatRoom[] @relation("SellerRooms")
+  messages   Message[]
+  notifications Notification[]
+}
+
+model Textbook {
+  id         Int      @id @default(autoincrement())
+  title      String
+  className  String
+  price      String
+  note       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  sellerId   Int
+  seller     User       @relation(fields: [sellerId], references: [id])
+  chatRooms  ChatRoom[]
+}
+
+model Gathering {
+  id         Int      @id @default(autoincrement())
+  title      String
+  date       String
+  place      String
+  type       String
+  tags       String   // カンマ区切り
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  members    User[]   @relation("GatheringMembers")
+}
+
+model ChatRoom {
+  id         Int      @id @default(autoincrement())
+  textbookId Int?
+  textbook   Textbook? @relation(fields: [textbookId], references: [id])
+  
+  buyerId    Int
+  buyer      User     @relation("BuyerRooms", fields: [buyerId], references: [id])
+  
+  sellerId   Int
+  seller     User     @relation("SellerRooms", fields: [sellerId], references: [id])
+  
+  messages   Message[]
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  content    String
+  
+  senderId   Int
+  sender     User     @relation(fields: [senderId], references: [id])
+  
+  roomId     Int
+  room       ChatRoom @relation(fields: [roomId], references: [id])
+  
+  createdAt  DateTime @default(now())
+}
+
+model Notification {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  type       String   // 'NEW_MESSAGE', 'GATHERING_JOIN'
+  content    String
+  link       String?
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
