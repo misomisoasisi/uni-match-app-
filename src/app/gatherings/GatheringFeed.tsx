@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import { Plus, Calendar, MapPin, Users, X } from "lucide-react";
 import { createGathering, joinGathering, leaveGathering } from "../actions";
 import { getAvatarUrl } from "@/lib/avatar";
@@ -13,11 +12,6 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ title: '', date: '', place: '', type: 'ご飯 (ランチ/ディナー)', tags: '', deadline: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const now = new Date();
   
@@ -193,8 +187,8 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
         })}
       </div>
 
-      {showModal && mounted && createPortal(
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      {showModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <div className="card" style={{ width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
             <button onClick={() => setShowModal(false)} style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', zIndex: 10, padding: '0.5rem' }}>
               <X />
@@ -236,8 +230,7 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
               </button>
             </div>
           </div>
-        </div>,
-        document.getElementById('app-main')!
+        </div>
       )}
     </>
   );
