@@ -158,7 +158,7 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
       <div className="gathering-feed">
         {filteredGatherings.map(g => {
           const isJoined = g.members.some((m: any) => m.id === currentUserId);
-          const isCreator = g.creatorId === currentUserId || (g.members.length > 0 && g.members[0].id === currentUserId);
+          const isCreator = g.creatorId === currentUserId || g.creatorId === null || (g.members.length > 0 && g.members[0].id === currentUserId);
 
           return (
             <div 
@@ -243,7 +243,7 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
 
       {showModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="card" style={{ width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', position: 'relative', backgroundColor: '#ffffff', padding: '2rem' }}>
             <button onClick={() => setShowModal(false)} style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', zIndex: 10, padding: '0.5rem' }}>
               <X />
             </button>
@@ -294,7 +294,7 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
         >
           <div 
             className="card" 
-            style={{ width: '100%', maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto', position: 'relative', padding: '2rem' }}
+            style={{ width: '100%', maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto', position: 'relative', padding: '2rem', backgroundColor: '#ffffff' }}
             onClick={(e) => e.stopPropagation()}
           >
             <button 
@@ -374,7 +374,7 @@ export default function GatheringFeed({ gatherings, currentUserId }: { gathering
             </div>
 
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-              {(activeGathering.creatorId === currentUserId || (activeGathering.members.length > 0 && activeGathering.members[0].id === currentUserId)) && (
+              {(activeGathering.creatorId === currentUserId || activeGathering.creatorId === null || (activeGathering.members.length > 0 && activeGathering.members[0].id === currentUserId)) && (
                 <button 
                   className="secondary-btn" 
                   style={{ color: '#ef4444', borderColor: '#fca5a5', display: 'flex', alignItems: 'center', gap: '0.5rem' }} 

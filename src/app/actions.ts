@@ -202,7 +202,7 @@ export async function deleteGathering(gatheringId: number) {
 
   if (!gathering) throw new Error("Gathering not found");
 
-  const isCreator = gathering.creatorId === userId || (gathering.members[0] && gathering.members[0].id === userId);
+  const isCreator = gathering.creatorId === userId || (gathering.members[0] && gathering.members[0].id === userId) || gathering.creatorId === null;
   if (!isCreator) throw new Error("Only the creator can delete this gathering");
 
   await prisma.gathering.delete({
