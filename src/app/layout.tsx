@@ -31,7 +31,29 @@ export default function RootLayout({
   const [unreadCount, setUnreadCount] = useState(0);
   useEffect(() => {
     if (pathname !== '/login' && pathname !== '/signup') {
-      getMyUnreadCount().then(setUnreadCount).catch(console.error);
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+
+      const fetchCount = async () => {
+        try {
+          const count = await getMyUnreadCount();
+          setUnreadCount(prev => {
+            if (count > prev && prev !== 0) {
+              if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                new Notification('うにばーしてぃ', { body: '新しい通知が届きました！' });
+              }
+            }
+            return count;
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      fetchCount();
+      const interval = setInterval(fetchCount, 10000);
+      return () => clearInterval(interval);
     }
   }, [pathname]);
 

@@ -13,11 +13,34 @@ export default async function Home() {
   const textbooks = await prisma.textbook.findMany({ include: { seller: true }, take: 2 });
   const gatherings = await prisma.gathering.findMany({ include: { members: true } });
 
+  const now = new Date();
+  const jstHour = (now.getUTCHours() + 9) % 24;
+  let greeting = "こんにちは";
+  if (jstHour >= 5 && jstHour < 11) {
+    greeting = "おはようございます";
+  } else if (jstHour >= 11 && jstHour < 18) {
+    greeting = "こんにちは";
+  } else {
+    greeting = "こんばんは";
+  }
+
+  const funnyPhrases = [
+    "今日の大学生活で新しい出会いを見つけましょう。",
+    "今日は単位を落とさないように頑張りましょう！",
+    "学食の限定メニューはもうチェックしましたか？",
+    "全休を目指して今日も元気にいきましょう！",
+    "課題は明日から本気出す予定ですよね？",
+    "空きコマで一緒にサボる...いえ、勉強する仲間を探しませんか？",
+    "教授の雑談からテストに出る箇所を予測するゲームの始まりです。",
+    "1限がある日は自分を最大限に褒めてあげましょう。"
+  ];
+  const randomPhrase = funnyPhrases[Math.floor(Math.random() * funnyPhrases.length)];
+
   return (
     <>
       <div className="welcome-banner">
-        <h2>こんにちは、{currentUser?.name || "User"}さん！</h2>
-        <p>今日の大学生活で新しい出会いを見つけましょう。</p>
+        <h2>{greeting}、{currentUser?.name || "User"}さん！</h2>
+        <p>{randomPhrase}</p>
       </div>
       
       <div className="dashboard-grid">
