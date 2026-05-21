@@ -307,3 +307,43 @@ export async function markNotificationsAsRead() {
   });
   revalidatePath('/notifications');
 }
+
+export async function getCurrentUserFlags() {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) return null;
+  const userId = parseInt(authCookie.value);
+  if (isNaN(userId)) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { hasAgreedToTerms: true, hasSeenTutorial: true }
+  });
+  return user;
+}
+
+export async function agreeToTerms() {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) return;
+  const userId = parseInt(authCookie.value);
+  if (isNaN(userId)) return;
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { hasAgreedToTerms: true }
+  });
+}
+
+export async function completeTutorial() {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) return;
+  const userId = parseInt(authCookie.value);
+  if (isNaN(userId)) return;
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { hasSeenTutorial: true }
+  });
+}

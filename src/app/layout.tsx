@@ -6,7 +6,8 @@ import { Home, Users, BookOpen, Coffee, User, Bell, MessageCircle } from "lucide
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { getMyUnreadCount } from "./actions";
+import { getMyUnreadCount, getCurrentUserFlags, agreeToTerms, completeTutorial } from "./actions";
+import RulesContent from "./RulesContent";
 
 const inter = Inter({ subsets: ["latin"] });
 const notoSansJP = Noto_Sans_JP({ subsets: ["latin"], weight: ["400", "500", "700"] });
@@ -29,6 +30,64 @@ export default function RootLayout({
   };
 
   const [unreadCount, setUnreadCount] = useState(0);
+  
+  // Tutorial and Terms State
+  const [showTerms, setShowTerms] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const [isLoadingFlags, setIsLoadingFlags] = useState(true);
+
+  useEffect(() => {
+    if (pathname !== '/login' && pathname !== '/signup') {
+      getCurrentUserFlags().then(flags => {
+        if (flags) {
+          if (!flags.hasAgreedToTerms) {
+            setShowTerms(true);
+          } else if (!flags.hasSeenTutorial) {
+            setShowTutorial(true);
+          }
+        }
+        setIsLoadingFlags(false);
+      }).catch(() => setIsLoadingFlags(false));
+    } else {
+      setIsLoadingFlags(false);
+    }
+  }, [pathname]);
+
+  const handleAgreeTerms = async () => {
+    await agreeToTerms();
+    setShowTerms(false);
+    setShowTutorial(true);
+  };
+
+  const handleCompleteTutorial = async () => {
+    await completeTutorial();
+    setShowTutorial(false);
+  };
+
+  const tutorialContent = [
+    {
+      title: "ようこそ、うにばーしてぃへ！",
+      description: "「うにばーしてぃ」は、同じ大学の仲間と繋がるための専用アプリです。まずはホーム画面で今日の気分やおすすめの仲間をチェックしましょう。",
+      icon: <Home size={48} color="var(--primary)" />
+    },
+    {
+      title: "マッチングで仲間探し",
+      description: "趣味や学部が近い仲間をスワイプで見つけられます。気が合いそうな人がいたら気軽にアプローチしてみましょう！",
+      icon: <Users size={48} color="var(--primary)" />
+    },
+    {
+      title: "教科書マルシェ",
+      description: "使わなくなった教科書を先輩から買ったり、後輩に譲ったりできるフリーマーケット機能です。かしこく節約しましょう。",
+      icon: <BookOpen size={48} color="var(--primary)" />
+    },
+    {
+      title: "ご飯・飲み会",
+      description: "空きコマのランチや週末の飲み会を企画・参加して、新しい繋がりを作りましょう。充実したキャンパスライフを！",
+      icon: <Coffee size={48} color="var(--primary)" />
+    }
+  ];
+
   useEffect(() => {
     if (pathname !== '/login' && pathname !== '/signup') {
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
@@ -114,6 +173,64 @@ export default function RootLayout({
               </ul>
             </nav>
           )}
+
+          {/* Terms Overlay */}
+          {showTerms && (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+              <div className="card" style={{ width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', backgroundColor: '#ffffff', padding: '2rem', display: 'flex', flexDirection: 'column' }}>
+                <h2 style={{ marginBottom: '1.5rem', textAlign: 'center', color: 'var(--text-main)' }}>利用規約とルール</h2>
+                
+                <div style={{ flex: 1, overflowY: 'auto', marginBottom: '1.5rem', border: '1px solid var(--border)', borderRadius: '8px', padding: '1rem', backgroundColor: '#f8fafc' }}>
+                  <RulesContent />
+                </div>
+                
+                <button className="primary-btn" style={{ width: '100%', justifyContent: 'center', fontSize: '1.1rem', padding: '1rem' }} onClick={handleAgreeTerms}>
+                  規約に同意して始める
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Tutorial Overlay */}
+          {!showTerms && showTutorial && (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9998, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+              <div className="card" style={{ width: '100%', maxWidth: '400px', backgroundColor: '#ffffff', padding: '2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ marginBottom: '1.5rem', background: 'rgba(37, 99, 235, 0.1)', padding: '1.5rem', borderRadius: '50%', display: 'inline-flex' }}>
+                  {tutorialContent[tutorialStep].icon}
+                </div>
+                <h2 style={{ marginBottom: '1rem', color: 'var(--text-main)', fontSize: '1.4rem' }}>
+                  {tutorialContent[tutorialStep].title}
+                </h2>
+                <p style={{ color: 'var(--text-muted)', lineHeight: '1.6', marginBottom: '2rem', fontSize: '0.95rem' }}>
+                  {tutorialContent[tutorialStep].description}
+                </p>
+                
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem' }}>
+                  {tutorialContent.map((_, idx) => (
+                    <div key={idx} style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: idx === tutorialStep ? 'var(--primary)' : '#cbd5e1', transition: 'background-color 0.3s' }} />
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', width: '100%', gap: '1rem' }}>
+                  {tutorialStep > 0 && (
+                    <button className="secondary-btn" style={{ flex: 1, padding: '0.8rem', border: '1px solid #cbd5e1', borderRadius: '8px', background: 'transparent', cursor: 'pointer' }} onClick={() => setTutorialStep(s => s - 1)}>
+                      戻る
+                    </button>
+                  )}
+                  <button className="primary-btn" style={{ flex: 2, padding: '0.8rem', justifyContent: 'center' }} onClick={() => {
+                    if (tutorialStep < tutorialContent.length - 1) {
+                      setTutorialStep(s => s + 1);
+                    } else {
+                      handleCompleteTutorial();
+                    }
+                  }}>
+                    {tutorialStep < tutorialContent.length - 1 ? '次へ' : 'さっそく始める！'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
         </main>
       </body>
     </html>
