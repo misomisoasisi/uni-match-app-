@@ -177,12 +177,38 @@ export async function createGathering(creatorId: number, data: {
   await prisma.gathering.create({
     data: {
       ...rest,
+      creatorId: creatorId,
       deadline: (deadline && deadline.trim() !== '') ? new Date(deadline) : null,
       members: {
         connect: { id: creatorId }
       }
     }
   });
+  revalidatePath("/gatherings");
+  revalidatePath("/");
+}
+
+export async function deleteGathering(gatheringId: number) {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) throw new Error("Unauthorized");
+  const userId = parseInt(authCookie.value);
+  if (isNaN(userId)) throw new Error("Unauthorized");
+
+  const gathering = await prisma.gathering.findUnique({
+    where: { id: gatheringId },
+    include: { members: true }
+  });
+
+  if (!gathering) throw new Error("Gathering not found");
+
+  const isCreator = gathering.creatorId === userId || (gathering.members[0] && gathering.members[0].id === userId);
+  if (!isCreator) throw new Error("Only the creator can delete this gathering");
+
+  await prisma.gathering.delete({
+    where: { id: gatheringId }
+  });
+
   revalidatePath("/gatherings");
   revalidatePath("/");
 }

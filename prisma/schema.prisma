@@ -23,6 +23,7 @@ model User {
 
   textbooks  Textbook[]
   gatherings Gathering[] @relation("GatheringMembers")
+  createdGatherings Gathering[] @relation("GatheringCreator")
   buyerRooms ChatRoom[]  @relation("BuyerRooms")
   sellerRooms ChatRoom[] @relation("SellerRooms")
   messages   Message[]
@@ -54,6 +55,8 @@ model Gathering {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  creatorId  Int?
+  creator    User?    @relation("GatheringCreator", fields: [creatorId], references: [id])
   members    User[]   @relation("GatheringMembers")
 }
 
