@@ -1,13 +1,60 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings, Save, Check, User as UserIcon, Shirt } from "lucide-react";
+import { Settings, Save, Check, User as UserIcon, Shirt, QrCode, Award } from "lucide-react";
 import { updateProfile } from "../actions";
 import { getAvatarUrl } from "@/lib/avatar";
 import TagSelector from "@/components/TagSelector";
+import MeetQrModal from "./MeetQrModal";
 
-export default function ProfileForm({ initialProfile }: { initialProfile: any }) {
+export default function ProfileForm({ initialProfile, meetsCount }: { initialProfile: any, meetsCount: number }) {
   const [profile, setProfile] = useState(initialProfile);
+  const [showQrModal, setShowQrModal] = useState(false);
+
+  const trophies = [
+    {
+      id: "first_meet",
+      title: "ファーストコンタクト",
+      description: "初めて誰かと出会う",
+      icon: "🥉",
+      target: 1,
+      unlocked: meetsCount >= 1,
+      color: "#d97706",
+      bgColor: "rgba(217, 119, 6, 0.08)"
+    },
+    {
+      id: "meet_5",
+      title: "キャンパスの社交家",
+      description: "5人のユーザーと出会う",
+      icon: "🥈",
+      target: 5,
+      unlocked: meetsCount >= 5,
+      color: "#94a3b8",
+      bgColor: "rgba(148, 163, 184, 0.08)"
+    },
+    {
+      id: "meet_10",
+      title: "うにばのスター",
+      description: "10人のユーザーと出会う",
+      icon: "🥇",
+      target: 10,
+      unlocked: meetsCount >= 10,
+      color: "#f59e0b",
+      bgColor: "rgba(245, 158, 11, 0.08)"
+    },
+    {
+      id: "meet_20",
+      title: "レジェンド・オブ・うにば",
+      description: "20人のユーザーと出会う",
+      icon: "🏆",
+      target: 20,
+      unlocked: meetsCount >= 20,
+      color: "#3b82f6",
+      bgColor: "rgba(59, 130, 246, 0.08)"
+    }
+  ];
+
+
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState('face');
   const [avatarFeatures, setAvatarFeatures] = useState<any>({});
@@ -56,6 +103,7 @@ export default function ProfileForm({ initialProfile }: { initialProfile: any })
     fontWeight: avatarFeatures.clothing === clothingType ? 'bold' : 'normal'
   });
 
+
   return (
     <>
       <div className="profile-header card" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
@@ -70,6 +118,113 @@ export default function ProfileForm({ initialProfile }: { initialProfile: any })
               <span className="tag" key={tag}>{tag.trim()}</span>
             ))}
           </div>
+        </div>
+      </div>
+
+      <button 
+        onClick={() => setShowQrModal(true)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.6rem',
+          padding: '1.1rem',
+          backgroundColor: 'var(--primary)',
+          color: 'white',
+          border: 'none',
+          borderRadius: '16px',
+          cursor: 'pointer',
+          width: '100%',
+          justifyContent: 'center',
+          fontSize: '1.05rem',
+          fontWeight: 600,
+          boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)',
+          transition: 'transform 0.2s, box-shadow 0.2s'
+        }}
+      >
+        <QrCode size={22} />
+        対面で出会いを記録（QRコード表示）
+      </button>
+
+      {showQrModal && (
+        <MeetQrModal userId={profile.id} onClose={() => setShowQrModal(false)} />
+      )}
+
+      {/* トロフィー実績セクション */}
+      <div className="card" style={{ marginTop: '1rem' }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.2rem' }}>
+          <Award color="var(--primary)" /> 獲得したトロフィー ({trophies.filter(t => t.unlocked).length} / {trophies.length})
+        </h3>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', backgroundColor: 'var(--surface-light)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '1.2rem' }}>
+          <div style={{ fontSize: '1.8rem' }}>👥</div>
+          <div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>これまでに出会ったユニーク人数</div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{meetsCount} 人</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          {trophies.map(trophy => (
+            <div 
+              key={trophy.id} 
+              style={{
+                border: '1px solid var(--border)',
+                borderRadius: '16px',
+                padding: '1.2rem 1rem',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                position: 'relative',
+                overflow: 'hidden',
+                backgroundColor: trophy.unlocked ? trophy.bgColor : '#f8fafc',
+                opacity: trophy.unlocked ? 1 : 0.6,
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                boxShadow: trophy.unlocked ? '0 4px 12px rgba(0,0,0,0.03)' : 'none'
+              }}
+            >
+              {/* アイコン */}
+              <div style={{ 
+                fontSize: '2.5rem', 
+                marginBottom: '0.5rem',
+                filter: trophy.unlocked ? 'none' : 'grayscale(1) contrast(0.5)'
+              }}>
+                {trophy.icon}
+              </div>
+              
+              <div style={{ 
+                fontWeight: 'bold', 
+                fontSize: '0.9rem', 
+                color: trophy.unlocked ? 'var(--text-main)' : '#64748b',
+                marginBottom: '0.25rem' 
+              }}>
+                {trophy.title}
+              </div>
+              
+              <div style={{ 
+                fontSize: '0.75rem', 
+                color: 'var(--text-muted)',
+                lineHeight: '1.3'
+              }}>
+                {trophy.description}
+              </div>
+
+              {/* 進行状況（未アンロック時） */}
+              {!trophy.unlocked && (
+                <div style={{ 
+                  marginTop: '0.5rem', 
+                  fontSize: '0.7rem', 
+                  backgroundColor: '#e2e8f0', 
+                  color: '#475569', 
+                  padding: '2px 8px', 
+                  borderRadius: '10px',
+                  fontWeight: 'bold'
+                }}>
+                  {meetsCount} / {trophy.target} 人
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -126,6 +281,19 @@ export default function ProfileForm({ initialProfile }: { initialProfile: any })
                   </select>
                 </div>
                 <div className="form-group">
+                  <label>眉毛</label>
+                  <select className="form-input" value={avatarFeatures.eyebrows || ''} onChange={e => handleFeatureChange('eyebrows', e.target.value)}>
+                    <option value="">おまかせ</option>
+                    <option value="default">普通</option>
+                    <option value="angry">怒り</option>
+                    <option value="flatNatural">並行</option>
+                    <option value="raisedExcited">ワクワク</option>
+                    <option value="sad">困り眉</option>
+                    <option value="unibrowNatural">つながり眉</option>
+                    <option value="upDown">ちぐはぐ</option>
+                  </select>
+                </div>
+                <div className="form-group">
                   <label>髪型</label>
                   <select className="form-input" value={avatarFeatures.top || ''} onChange={e => handleFeatureChange('top', e.target.value)}>
                     <option value="">おまかせ</option>
@@ -133,6 +301,14 @@ export default function ProfileForm({ initialProfile }: { initialProfile: any })
                     <option value="straight01">ロングヘアー</option>
                     <option value="curly">カーリーヘア</option>
                     <option value="dreads">ドレッド</option>
+                    <option value="bun">お団子</option>
+                    <option value="straight02">ショートボブ</option>
+                    <option value="shortRound">マッシュ</option>
+                    <option value="shortWaved">ウェーブショート</option>
+                    <option value="hat">キャップ</option>
+                    <option value="hijab">ヒジャブ</option>
+                    <option value="turban">ターバン</option>
+                    <option value="winterHat01">ニット帽</option>
                   </select>
                 </div>
                 <div className="form-group">
@@ -172,6 +348,19 @@ export default function ProfileForm({ initialProfile }: { initialProfile: any })
                     <button style={getBtnStyle('overall')} onClick={() => handleFeatureChange('clothing', 'overall')}>
                       オーバーオール 👑
                     </button>
+                    <button style={getBtnStyle('collarAndSweater')} onClick={() => handleFeatureChange('clothing', 'collarAndSweater')}>
+                      セーター
+                    </button>
+                    <button style={getBtnStyle('graphicShirt')} onClick={() => handleFeatureChange('clothing', 'graphicShirt')}>
+                      柄シャツ
+                    </button>
+                    <button style={getBtnStyle('shirtVNeck')} onClick={() => handleFeatureChange('clothing', 'shirtVNeck')}>
+                      Vネック
+                    </button>
+                  </div>
+                  <div className="form-group" style={{ marginTop: '1rem' }}>
+                    <label>服の色</label>
+                    <input type="color" className="form-input" style={{ height: '40px', padding: '0.2rem', cursor: 'pointer' }} value={avatarFeatures.clothesColor ? `#${avatarFeatures.clothesColor.replace('#', '')}` : '#ffffff'} onChange={e => handleFeatureChange('clothesColor', e.target.value)} />
                   </div>
                   <div style={{ padding: '0.8rem', backgroundColor: 'rgba(251, 191, 36, 0.1)', borderRadius: '8px', marginTop: '1rem', border: '1px solid rgba(251, 191, 36, 0.3)' }}>
                     <p style={{ fontSize: '0.8rem', color: '#b45309', margin: 0 }}>👑 プレミアムアイテム（お試し期間中）<br/>将来的に課金やアプリ内コインで解放される特別な衣装のプロトタイプです。</p>
@@ -209,3 +398,4 @@ export default function ProfileForm({ initialProfile }: { initialProfile: any })
     </>
   );
 }
+

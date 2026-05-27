@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ArrowLeft, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { sendMessage } from "../../actions";
+import { sendMessage, getChatMessages } from "../../actions";
 import { getAvatarUrl } from "@/lib/avatar";
 
 export default function ChatUI({ room, currentUserId }: { room: any, currentUserId: number }) {
@@ -12,12 +12,49 @@ export default function ChatUI({ room, currentUserId }: { room: any, currentUser
   const [isSending, setIsSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // メッセージのローカル状態管理
+  const [messages, setMessages] = useState<any[]>(room.messages);
+
   // チャット相手（自分以外）を特定
   const partner = room.buyerId === currentUserId ? room.seller : room.buyer;
 
+  // props が変更された場合に state に反映（自分が送信した場合など）
+  useEffect(() => {
+    setMessages(room.messages);
+  }, [room.messages]);
+
+  // 定期ポーリングによるリアルタイム更新（3秒間隔）
+  useEffect(() => {
+    let active = true;
+    const interval = setInterval(async () => {
+      try {
+        const latestMessages = await getChatMessages(room.id);
+        if (!active) return;
+
+        setMessages(prevMessages => {
+          const hasChanges = latestMessages.length !== prevMessages.length || 
+            (latestMessages.length > 0 && prevMessages.length > 0 && 
+             latestMessages[latestMessages.length - 1].id !== prevMessages[prevMessages.length - 1].id);
+          
+          if (hasChanges) {
+            return latestMessages;
+          }
+          return prevMessages;
+        });
+      } catch (e) {
+        console.error("Failed to poll messages:", e);
+      }
+    }, 3000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [room.id]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [room.messages]);
+  }, [messages]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,12 +85,12 @@ export default function ChatUI({ room, currentUserId }: { room: any, currentUser
 
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {room.messages.length === 0 ? (
+        {messages.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '2rem' }}>
             メッセージを送って交渉を始めましょう！
           </div>
         ) : (
-          room.messages.map((msg: any) => {
+          messages.map((msg: any) => {
             const isMe = msg.senderId === currentUserId;
             return (
               <div key={msg.id} style={{ display: 'flex', flexDirection: isMe ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: '0.5rem' }}>

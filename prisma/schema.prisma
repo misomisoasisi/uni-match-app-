@@ -24,6 +24,11 @@ model User {
   hasAgreedToTerms Boolean @default(false)
   hasSeenTutorial  Boolean @default(false)
 
+  meetToken        String?
+  meetTokenExpires DateTime?
+
+  meets1     Meet[]     @relation("UserMeets1")
+  meets2     Meet[]     @relation("UserMeets2")
   textbooks  Textbook[]
   gatherings Gathering[] @relation("GatheringMembers")
   createdGatherings Gathering[] @relation("GatheringCreator")
@@ -103,3 +108,15 @@ model Notification {
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
 }
+
+model Meet {
+  id        Int      @id @default(autoincrement())
+  user1Id   Int
+  user1     User     @relation("UserMeets1", fields: [user1Id], references: [id])
+  user2Id   Int
+  user2     User     @relation("UserMeets2", fields: [user2Id], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([user1Id, user2Id])
+}
+

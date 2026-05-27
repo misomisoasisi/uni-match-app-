@@ -18,12 +18,15 @@ export default function LoginForm() {
     setLoading(true);
     setError('');
     try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectTo = searchParams.get('redirectTo') || '/';
+      
       const res = await loginWithEmail(formData.email, formData.pass);
       if (res && res.error) {
         setError(res.error);
         setLoading(false);
       } else {
-        window.location.href = "/";
+        window.location.href = redirectTo;
       }
     } catch (err) {
       console.error(err);
@@ -31,14 +34,17 @@ export default function LoginForm() {
       setLoading(false);
     }
   };
-
+ 
   const handleGuestLogin = async () => {
     setLoading(true);
     setError('');
     try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectTo = searchParams.get('redirectTo') || '/';
+
       const res = await loginAsGuest();
       if (res && res.success) {
-        window.location.href = "/";
+        window.location.href = redirectTo;
       } else {
         setError('ゲストログインに失敗しました。');
         setLoading(false);

@@ -6,6 +6,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 
+
+
 export async function login(userId: number) {
   const cookieStore = await cookies();
   cookieStore.set('auth_user_id', userId.toString(), {
@@ -347,3 +349,199 @@ export async function completeTutorial() {
     data: { hasSeenTutorial: true }
   });
 }
+
+export async function deleteTextbook(textbookId: number) {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) throw new Error("Unauthorized");
+  const userId = parseInt(authCookie.value);
+  if (isNaN(userId)) throw new Error("Unauthorized");
+
+  const textbook = await prisma.textbook.findUnique({
+    where: { id: textbookId }
+  });
+
+  if (!textbook) throw new Error("Textbook not found");
+  if (textbook.sellerId !== userId) {
+    throw new Error("Only the seller can delete this textbook");
+  }
+
+  // Related chat rooms should set their textbookId to null
+  await prisma.chatRoom.updateMany({
+    where: { textbookId },
+    data: { textbookId: null }
+  });
+
+  await prisma.textbook.delete({
+    where: { id: textbookId }
+  });
+
+  revalidatePath("/textbooks");
+  revalidatePath("/");
+}
+
+export async function getChatMessages(roomId: number) {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) throw new Error("Unauthorized");
+  const userId = parseInt(authCookie.value);
+  if (isNaN(userId)) throw new Error("Unauthorized");
+
+  // Room verification
+  const room = await prisma.chatRoom.findUnique({
+    where: { id: roomId },
+    select: { buyerId: true, sellerId: true }
+  });
+
+  if (!room) throw new Error("Chat room not found");
+  if (room.buyerId !== userId && room.sellerId !== userId) {
+    throw new Error("Unauthorized access to chat room");
+  }
+
+  return await prisma.message.findMany({
+    where: { roomId },
+    orderBy: { createdAt: 'asc' }
+  });
+}
+
+export async function generateMeetToken() {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) throw new Error("Unauthorized");
+  const userId = parseInt(authCookie.value);
+  if (isNaN(userId)) throw new Error("Unauthorized");
+
+  const token = globalThis.crypto.randomUUID().replace(/-/g, '');
+  const expires = new Date(Date.now() + 5 * 60 * 1000); // 5分間有効
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      meetToken: token,
+      meetTokenExpires: expires
+    }
+  });
+
+  return token;
+}
+
+async function getMeetsCountForUser(userId: number) {
+  return await prisma.meet.count({
+    where: {
+      OR: [
+        { user1Id: userId },
+        { user2Id: userId }
+      ]
+    }
+  });
+}
+
+export async function getMyMeetsCount() {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) return 0;
+  const userId = parseInt(authCookie.value);
+  if (isNaN(userId)) return 0;
+
+  return await getMeetsCountForUser(userId);
+}
+
+export async function recordMeet(token: string, hostUserId: number) {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) throw new Error("Unauthorized");
+  const userId = parseInt(authCookie.value);
+  if (isNaN(userId)) throw new Error("Unauthorized");
+
+  if (userId === hostUserId) {
+    return { error: "自分自身との出会いは記録できません。" };
+  }
+
+  // ホストユーザーを取得してトークンと期限を検証
+  const host = await prisma.user.findUnique({
+    where: { id: hostUserId },
+    select: { id: true, name: true, meetToken: true, meetTokenExpires: true }
+  });
+
+  if (!host) {
+    return { error: "相手のユーザーが見つかりません。" };
+  }
+
+  if (!host.meetToken || host.meetToken !== token) {
+    return { error: "QRコードが無効か、またはすでに使用されています。相手にQRコードを再表示してもらってください。" };
+  }
+
+  if (host.meetTokenExpires && new Date() > host.meetTokenExpires) {
+    return { error: "QRコードの有効期限が切れています。相手にQRコードを再表示してもらってください。" };
+  }
+
+  // トークンのワンタイム化（使い捨て）
+  await prisma.user.update({
+    where: { id: hostUserId },
+    data: { meetToken: null, meetTokenExpires: null }
+  });
+
+  // IDの昇順で並び替えて登録
+  const user1Id = Math.min(userId, hostUserId);
+  const user2Id = Math.max(userId, hostUserId);
+
+  const existingMeet = await prisma.meet.findUnique({
+    where: {
+      user1Id_user2Id: { user1Id, user2Id }
+    }
+  });
+
+  let isFirstMeet = false;
+  if (!existingMeet) {
+    await prisma.meet.create({
+      data: { user1Id, user2Id }
+    });
+    isFirstMeet = true;
+    
+    // お互いに通知を追加
+    const guestUser = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+    if (guestUser) {
+      await prisma.notification.create({
+        data: {
+          userId: hostUserId,
+          type: 'MEET_SUCCESS',
+          content: `${guestUser.name}さんと出会いました！🤝`,
+          link: '/profile'
+        }
+      });
+      await prisma.notification.create({
+        data: {
+          userId: userId,
+          type: 'MEET_SUCCESS',
+          content: `${host.name}さんと出会いました！🤝`,
+          link: '/profile'
+        }
+      });
+    }
+  }
+
+  // トロフィー獲得判定
+  const meetsCount = await getMeetsCountForUser(userId);
+
+  const checkTrophy = (count: number) => {
+    if (count === 1) return "ファーストコンタクト 🥉";
+    if (count === 5) return "キャンパスの社交家 🥈";
+    if (count === 10) return "うにばのスター 🥇";
+    if (count === 20) return "レジェンド・オブ・うにば 🏆";
+    return null;
+  };
+
+  const myTrophy = checkTrophy(meetsCount);
+
+  revalidatePath("/profile");
+  revalidatePath("/");
+
+  return { 
+    success: true, 
+    partnerName: host.name, 
+    newTrophy: isFirstMeet ? myTrophy : null,
+    isFirstMeet
+  };
+}
+
+

@@ -18,9 +18,18 @@ export default async function ProfilePage() {
     redirect('/login');
   }
 
+  const meetsCount = await prisma.meet.count({
+    where: {
+      OR: [
+        { user1Id: currentUserId },
+        { user2Id: currentUserId }
+      ]
+    }
+  });
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '2rem' }}>
-      <ProfileForm initialProfile={myUser} />
+      <ProfileForm initialProfile={myUser} meetsCount={meetsCount} />
       <HelpModalButton />
       <LogoutButton />
     </div>

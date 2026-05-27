@@ -43,6 +43,7 @@ export const getAvatarUrl = (name: string, featureStr: string | null) => {
   if (features.eyes) params.append('eyes', features.eyes);
   if (features.mouth) params.append('mouth', features.mouth);
   if (features.eyebrows) params.append('eyebrows', features.eyebrows);
+  if (features.clothesColor) params.append('clothesColor', features.clothesColor.replace('#', ''));
 
   return `https://api.dicebear.com/7.x/avataaars/svg?${params.toString()}`;
 };
