@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { Sparkles, Book, Utensils, User as UserIcon, Clock, MapPin } from "lucide-react";
 import { getAvatarUrl } from "@/lib/avatar";
 import { getCurrentUserId } from "@/lib/auth";
+import Link from "next/link";
 
 export const dynamic = 'force-dynamic';
 
@@ -52,17 +53,19 @@ export default async function Home() {
           </div>
           <div className="user-scroll-list">
             {users.map(user => (
-              <div className="user-card-mini" key={user.id}>
-                <div className="avatar" style={{ backgroundColor: user.color }}>
-                  <img src={getAvatarUrl(user.name, user.feature)} alt={user.name} loading="lazy" style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
-                </div>
-                <div>
-                  <div className="item-title">
-                    {user.name} <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: '#64748b' }}>{user.char}</span>
+              <Link href={`/profile/${user.id}`} key={user.id} style={{ textDecoration: 'none', color: 'inherit' }}>
+                <div className="user-card-mini">
+                  <div className="avatar" style={{ backgroundColor: user.color }}>
+                    <img src={getAvatarUrl(user.name, user.feature)} alt={user.name} loading="lazy" style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
                   </div>
-                  <div className="item-meta">{user.dept}</div>
+                  <div>
+                    <div className="item-title">
+                      {user.name} <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: '#64748b' }}>{user.char}</span>
+                    </div>
+                    <div className="item-meta">{user.dept}</div>
+                  </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </section>
