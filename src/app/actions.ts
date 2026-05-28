@@ -544,4 +544,90 @@ export async function recordMeet(token: string, hostUserId: number) {
   };
 }
 
+export async function getChatRooms() {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) throw new Error("Unauthorized");
+  const userId = parseInt(authCookie.value);
+  if (isNaN(userId)) throw new Error("Unauthorized");
+
+  const unreadNotifications = await prisma.notification.findMany({
+    where: {
+      userId,
+      isRead: false,
+      type: 'NEW_MESSAGE'
+    }
+  });
+
+  const rooms = await prisma.chatRoom.findMany({
+    where: {
+      OR: [
+        { buyerId: userId },
+        { sellerId: userId }
+      ]
+    },
+    include: {
+      buyer: true,
+      seller: true,
+      textbook: true,
+      messages: {
+        orderBy: { createdAt: 'desc' },
+        take: 1
+      }
+    },
+    orderBy: {
+      updatedAt: 'desc'
+    }
+  });
+
+  return rooms.map(room => {
+    const partner = room.buyerId === userId ? room.seller : room.buyer;
+    const lastMessage = room.messages[0] || null;
+    const unreadCount = unreadNotifications.filter(n => n.link === `/chat/${room.id}`).length;
+    return {
+      id: room.id,
+      partner: {
+        id: partner.id,
+        name: partner.name,
+        color: partner.color,
+        feature: partner.feature,
+        dept: partner.dept
+      },
+      textbook: room.textbook ? {
+        id: room.textbook.id,
+        title: room.textbook.title
+      } : null,
+      lastMessage: lastMessage ? {
+        content: lastMessage.content,
+        createdAt: lastMessage.createdAt
+      } : null,
+      unreadCount,
+      updatedAt: room.updatedAt
+    };
+  });
+}
+
+export async function markRoomNotificationsAsRead(roomId: number) {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) return;
+  const userId = parseInt(authCookie.value);
+  if (isNaN(userId)) return;
+
+  await prisma.notification.updateMany({
+    where: {
+      userId,
+      isRead: false,
+      type: 'NEW_MESSAGE',
+      link: `/chat/${roomId}`
+    },
+    data: { isRead: true }
+  });
+  revalidatePath('/notifications');
+  revalidatePath(`/chat/${roomId}`);
+  revalidatePath('/chat');
+}
+
+
+
 

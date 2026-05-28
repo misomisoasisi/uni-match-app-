@@ -135,7 +135,9 @@ export default function RootLayout({
                       </span>
                     )}
                   </Link>
-                  <button className="icon-btn"><MessageCircle /></button>
+                  <Link href="/chat" className="icon-btn">
+                    <MessageCircle />
+                  </Link>
                 </div>
               </header>
             )}

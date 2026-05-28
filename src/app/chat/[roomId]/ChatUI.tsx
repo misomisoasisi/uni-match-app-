@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ArrowLeft, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { sendMessage, getChatMessages } from "../../actions";
+import { sendMessage, getChatMessages, markRoomNotificationsAsRead } from "../../actions";
 import { getAvatarUrl } from "@/lib/avatar";
 
 export default function ChatUI({ room, currentUserId }: { room: any, currentUserId: number }) {
@@ -22,6 +22,11 @@ export default function ChatUI({ room, currentUserId }: { room: any, currentUser
   useEffect(() => {
     setMessages(room.messages);
   }, [room.messages]);
+
+  // 部屋に入ったとき、または新着メッセージ取得時に通知を既読にする
+  useEffect(() => {
+    markRoomNotificationsAsRead(room.id);
+  }, [room.id, messages.length]);
 
   // 定期ポーリングによるリアルタイム更新（3秒間隔）
   useEffect(() => {
