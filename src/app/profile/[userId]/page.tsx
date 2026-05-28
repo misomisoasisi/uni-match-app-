@@ -76,6 +76,13 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
         </div>
       </div>
 
+      {user.bio && (
+        <div className="card" style={{ padding: '1.2rem', backgroundColor: 'var(--surface-light)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+          <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>自己紹介</h3>
+          <p style={{ whiteSpace: 'pre-wrap', margin: 0, lineHeight: '1.5', fontSize: '0.95rem' }}>{user.bio}</p>
+        </div>
+      )}
+
       <form action={startChat}>
         <button 
           type="submit" 

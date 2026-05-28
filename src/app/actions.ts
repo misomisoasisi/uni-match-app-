@@ -96,6 +96,7 @@ export async function updateProfile(userId: number, data: {
   tags: string;
   color: string;
   feature: string;
+  bio?: string;
 }) {
   await prisma.user.update({
     where: { id: userId },
@@ -105,6 +106,7 @@ export async function updateProfile(userId: number, data: {
       tags: data.tags,
       color: data.color,
       feature: data.feature,
+      bio: data.bio,
     }
   });
 

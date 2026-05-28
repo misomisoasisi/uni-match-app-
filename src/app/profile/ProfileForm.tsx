@@ -83,7 +83,8 @@ export default function ProfileForm({ initialProfile, meetsCount }: { initialPro
       dept: profile.dept,
       tags: profile.tags,
       color: profile.color,
-      feature: JSON.stringify(avatarFeatures)
+      feature: JSON.stringify(avatarFeatures),
+      bio: profile.bio || ''
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -384,6 +385,16 @@ export default function ProfileForm({ initialProfile, meetsCount }: { initialPro
           <div className="form-group">
             <label>学部・学年</label>
             <input type="text" className="form-input" value={profile.dept} onChange={e => setProfile({...profile, dept: e.target.value})} />
+          </div>
+          <div className="form-group">
+            <label>自己紹介文</label>
+            <textarea 
+              className="form-input" 
+              style={{ minHeight: '100px', resize: 'vertical' }} 
+              value={profile.bio || ''} 
+              onChange={e => setProfile({...profile, bio: e.target.value})} 
+              placeholder="よろしくお願いします！"
+            />
           </div>
           <div className="form-group">
             <label>趣味・性格タグ</label>
