@@ -2,8 +2,8 @@ import prisma from "@/lib/prisma";
 import { getCurrentUserId } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
 import { getAvatarUrl } from "@/lib/avatar";
-import { createOrGetMatchChatRoom } from "@/app/actions";
-import { MessageSquare, Award, ArrowLeft } from "lucide-react";
+import { createOrGetMatchChatRoom, checkMatchStatus, sendLike, blockUser, reportUser } from "@/app/actions";
+import { MessageSquare, Award, ArrowLeft, Heart, ShieldAlert, Flag } from "lucide-react";
 import Link from "next/link";
 
 export const dynamic = 'force-dynamic';
@@ -53,12 +53,42 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
     redirect(`/chat/${roomId}`);
   }
 
+  const { hasLiked, isMatch } = await checkMatchStatus(targetUserId);
+
+  async function handleLike() {
+    "use server";
+    await sendLike(targetUserId);
+  }
+
+  async function handleBlock() {
+    "use server";
+    await blockUser(targetUserId);
+    redirect('/');
+  }
+
+  async function handleReport() {
+    "use server";
+    await reportUser(targetUserId, "ユーザーからの通報");
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '2rem' }}>
-      <div style={{ marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
           <ArrowLeft size={18} /> ホームに戻る
         </Link>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <form action={handleReport}>
+            <button type="submit" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', cursor: 'pointer' }}>
+              <Flag size={14} /> 通報
+            </button>
+          </form>
+          <form action={handleBlock}>
+            <button type="submit" style={{ background: 'none', border: 'none', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', cursor: 'pointer' }}>
+              <ShieldAlert size={14} /> ブロック
+            </button>
+          </form>
+        </div>
       </div>
 
       <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', padding: '1.5rem' }}>
@@ -83,15 +113,40 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
         </div>
       )}
 
-      <form action={startChat}>
-        <button 
-          type="submit" 
-          className="primary-btn" 
-          style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '1rem', fontSize: '1.1rem' }}
-        >
-          <MessageSquare /> トーク画面に移る
-        </button>
-      </form>
+      <div style={{ display: 'flex', gap: '0.5rem', flexDirection: 'column' }}>
+        {!hasLiked && !isMatch && (
+          <form action={handleLike}>
+            <button 
+              type="submit" 
+              style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '1rem', fontSize: '1.1rem', backgroundColor: '#fdf2f8', color: '#db2777', border: '1px solid #fbcfe8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              <Heart /> 気になってる👋
+            </button>
+          </form>
+        )}
+        
+        {isMatch && (
+          <div style={{ textAlign: 'center', color: '#db2777', fontWeight: 'bold', padding: '0.5rem' }}>
+            🎉 マッチング成立！
+          </div>
+        )}
+
+        {hasLiked && !isMatch && (
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '0.5rem', fontSize: '0.9rem' }}>
+            いいね送信済みです👋
+          </div>
+        )}
+
+        <form action={startChat}>
+          <button 
+            type="submit" 
+            className="primary-btn" 
+            style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '1rem', fontSize: '1.1rem' }}
+          >
+            <MessageSquare /> トーク画面に移る
+          </button>
+        </form>
+      </div>
 
       <div className="card" style={{ marginTop: '0.5rem' }}>
         <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.2rem' }}>

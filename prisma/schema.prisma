@@ -19,6 +19,7 @@ model User {
   password   String
   gender     String?  // 男女などの性別
   bio        String?  // 自己紹介文
+  university String?  // 大学名
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   
@@ -37,6 +38,14 @@ model User {
   sellerRooms ChatRoom[] @relation("SellerRooms")
   messages   Message[]
   notifications Notification[]
+  
+  posts      Post[]
+  likesSent  Like[]   @relation("LikeSender")
+  likesReceived Like[] @relation("LikeReceiver")
+  blocksGiven Block[] @relation("Blocker")
+  blocksReceived Block[] @relation("Blocked")
+  reportsGiven Report[] @relation("Reporter")
+  reportsReceived Report[] @relation("Reported")
 }
 
 model Textbook {
@@ -121,3 +130,43 @@ model Meet {
   @@unique([user1Id, user2Id])
 }
 
+model Post {
+  id        Int      @id @default(autoincrement())
+  content   String
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Like {
+  id         Int      @id @default(autoincrement())
+  senderId   Int
+  sender     User     @relation("LikeSender", fields: [senderId], references: [id])
+  receiverId Int
+  receiver   User     @relation("LikeReceiver", fields: [receiverId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([senderId, receiverId])
+}
+
+model Block {
+  id         Int      @id @default(autoincrement())
+  blockerId  Int
+  blocker    User     @relation("Blocker", fields: [blockerId], references: [id])
+  blockedId  Int
+  blocked    User     @relation("Blocked", fields: [blockedId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+}
+
+model Report {
+  id         Int      @id @default(autoincrement())
+  reporterId Int
+  reporter   User     @relation("Reporter", fields: [reporterId], references: [id])
+  reportedId Int
+  reported   User     @relation("Reported", fields: [reportedId], references: [id])
+  reason     String
+  createdAt  DateTime @default(now())
+}

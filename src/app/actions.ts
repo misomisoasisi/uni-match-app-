@@ -19,6 +19,36 @@ export async function login(userId: number) {
   });
 }
 
+// 簡易性格診断アルゴリズム
+function calculateChar(tags: string): string {
+  const t = tags || "";
+  if (t.includes("インドア派") || t.includes("アニメ") || t.includes("ゲーム") || t.includes("読書")) {
+    return "おだやか文化系";
+  }
+  if (t.includes("アウトドア派") || t.includes("スポーツ観戦") || t.includes("ドライブ") || t.includes("フェス好き")) {
+    return "アクティブ行動派";
+  }
+  if (t.includes("カフェ巡り") || t.includes("旅行") || t.includes("ショッピング")) {
+    return "トレンドウォッチャー";
+  }
+  if (t.includes("ぼっち回避") || t.includes("寂しがりや")) {
+    return "フレンドリー寂しがり";
+  }
+  if (t.includes("フル単目指す") || t.includes("図書館の民")) {
+    return "真面目な努力家";
+  }
+  return "マイペース学生";
+}
+  const cookieStore = await cookies();
+  cookieStore.set('auth_user_id', userId.toString(), {
+    httpOnly: true,
+    secure: false, // IPアドレスアクセスなどのため、開発・テスト中はfalseを推奨
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7 // 1週間有効にする
+  });
+}
+
 export async function loginWithEmail(email: string, pass: string) {
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
@@ -49,7 +79,7 @@ export async function registerUser(data: { name: string, email: string, pass: st
       password: hashedPassword,
       gender: data.gender,
       dept: data.dept,
-      char: '新入生',
+      char: calculateChar(data.tags),
       tags: data.tags || '設定なし',
       color: '#f8fafc',
       feature: ''
@@ -103,6 +133,7 @@ export async function updateProfile(userId: number, data: {
     data: {
       name: data.name,
       dept: data.dept,
+      char: calculateChar(data.tags),
       tags: data.tags,
       color: data.color,
       feature: data.feature,
@@ -630,6 +661,156 @@ export async function markRoomNotificationsAsRead(roomId: number) {
   revalidatePath('/chat');
 }
 
+// ==============================
+// タイムライン (Post)
+// ==============================
+export async function createPost(content: string) {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) throw new Error("Unauthorized");
+  const userId = parseInt(authCookie.value);
+  if (isNaN(userId)) throw new Error("Unauthorized");
 
+  await prisma.post.create({
+    data: {
+      content,
+      authorId: userId
+    }
+  });
+  revalidatePath("/");
+}
 
+export async function deletePost(postId: number) {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) throw new Error("Unauthorized");
+  const userId = parseInt(authCookie.value);
+  if (isNaN(userId)) throw new Error("Unauthorized");
 
+  const post = await prisma.post.findUnique({ where: { id: postId } });
+  if (post?.authorId === userId) {
+    await prisma.post.delete({ where: { id: postId } });
+    revalidatePath("/");
+  }
+}
+
+// ==============================
+// いいね機能 (Like)
+// ==============================
+export async function sendLike(receiverId: number) {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) throw new Error("Unauthorized");
+  const senderId = parseInt(authCookie.value);
+  if (isNaN(senderId)) throw new Error("Unauthorized");
+
+  if (senderId === receiverId) return { error: "自分には送れません" };
+
+  try {
+    await prisma.like.create({
+      data: { senderId, receiverId }
+    });
+
+    // 相手がすでに自分にいいねしているかチェック（マッチング成立）
+    const reverseLike = await prisma.like.findUnique({
+      where: { senderId_receiverId: { senderId: receiverId, receiverId: senderId } }
+    });
+
+    const sender = await prisma.user.findUnique({ where: { id: senderId } });
+
+    if (reverseLike) {
+      // マッチング成立
+      await prisma.notification.create({
+        data: {
+          userId: receiverId,
+          type: 'MATCH',
+          content: `${sender?.name}さんとマッチングしました！チャットを始めましょう🎉`,
+          link: `/profile/${senderId}`
+        }
+      });
+      await prisma.notification.create({
+        data: {
+          userId: senderId,
+          type: 'MATCH',
+          content: `気になっていたユーザーとマッチングしました！🎉`,
+          link: `/profile/${receiverId}`
+        }
+      });
+      revalidatePath(`/profile/${receiverId}`);
+      return { success: true, isMatch: true };
+    } else {
+      // ただのいいね送信
+      await prisma.notification.create({
+        data: {
+          userId: receiverId,
+          type: 'LIKE',
+          content: `${sender?.name}さんがあなたを気になっています👋`,
+          link: `/profile/${senderId}`
+        }
+      });
+      revalidatePath(`/profile/${receiverId}`);
+      return { success: true, isMatch: false };
+    }
+  } catch (e) {
+    return { error: "すでにいいねを送信済みです" };
+  }
+}
+
+export async function checkMatchStatus(otherUserId: number) {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) return { hasLiked: false, isMatch: false };
+  const userId = parseInt(authCookie.value);
+  if (isNaN(userId)) return { hasLiked: false, isMatch: false };
+
+  const myLike = await prisma.like.findUnique({
+    where: { senderId_receiverId: { senderId: userId, receiverId: otherUserId } }
+  });
+
+  const theirLike = await prisma.like.findUnique({
+    where: { senderId_receiverId: { senderId: otherUserId, receiverId: userId } }
+  });
+
+  return {
+    hasLiked: !!myLike,
+    isMatch: !!myLike && !!theirLike
+  };
+}
+
+// ==============================
+// 安全性 (Block / Report)
+// ==============================
+export async function blockUser(blockedId: number) {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) throw new Error("Unauthorized");
+  const blockerId = parseInt(authCookie.value);
+  if (isNaN(blockerId)) throw new Error("Unauthorized");
+
+  if (blockerId === blockedId) return { error: "自分をブロックすることはできません" };
+
+  try {
+    await prisma.block.create({
+      data: { blockerId, blockedId }
+    });
+    revalidatePath("/");
+    revalidatePath(`/profile/${blockedId}`);
+    return { success: true };
+  } catch (e) {
+    return { error: "すでにブロックしています" };
+  }
+}
+
+export async function reportUser(reportedId: number, reason: string) {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) throw new Error("Unauthorized");
+  const reporterId = parseInt(authCookie.value);
+  if (isNaN(reporterId)) throw new Error("Unauthorized");
+
+  await prisma.report.create({
+    data: { reporterId, reportedId, reason }
+  });
+  
+  return { success: true };
+}
