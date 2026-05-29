@@ -793,17 +793,21 @@ export async function blockUser(blockedId: number) {
 }
 
 export async function reportUser(reportedId: number, reason: string) {
-  const cookieStore = await cookies();
-  const authCookie = cookieStore.get('auth_user_id');
-  if (!authCookie) throw new Error("Unauthorized");
-  const reporterId = parseInt(authCookie.value);
-  if (isNaN(reporterId)) throw new Error("Unauthorized");
+  try {
+    const cookieStore = await cookies();
+    const authCookie = cookieStore.get('auth_user_id');
+    if (!authCookie) return { error: "ログインが必要です" };
+    const reporterId = parseInt(authCookie.value);
+    if (isNaN(reporterId)) return { error: "ログインが必要です" };
 
-  await prisma.report.create({
-    data: { reporterId, reportedId, reason }
-  });
-  
-  return { success: true };
+    await prisma.report.create({
+      data: { reporterId, reportedId, reason }
+    });
+    
+    return { success: true };
+  } catch (error) {
+    return { error: "通報の送信に失敗しました" };
+  }
 }
 
 export async function getBlockedUsers() {

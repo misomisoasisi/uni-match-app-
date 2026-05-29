@@ -2,9 +2,10 @@ import prisma from "@/lib/prisma";
 import { getCurrentUserId } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
 import { getAvatarUrl } from "@/lib/avatar";
-import { createOrGetMatchChatRoom, checkMatchStatus, sendLike, blockUser, reportUser } from "@/app/actions";
-import { MessageSquare, Award, ArrowLeft, Heart, ShieldAlert, Flag } from "lucide-react";
+import { createOrGetMatchChatRoom, checkMatchStatus, sendLike, blockUser } from "@/app/actions";
+import { MessageSquare, Award, ArrowLeft, Heart, ShieldAlert } from "lucide-react";
 import Link from "next/link";
+import ReportModal from "@/components/ReportModal";
 
 export const dynamic = 'force-dynamic';
 
@@ -66,11 +67,6 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
     redirect('/');
   }
 
-  async function handleReport() {
-    "use server";
-    await reportUser(targetUserId, "ユーザーからの通報");
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -78,11 +74,7 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
           <ArrowLeft size={18} /> ホームに戻る
         </Link>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <form action={handleReport}>
-            <button type="submit" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', cursor: 'pointer' }}>
-              <Flag size={14} /> 通報
-            </button>
-          </form>
+          <ReportModal targetUserId={targetUserId} targetUserName={user.name} />
           <form action={handleBlock}>
             <button type="submit" style={{ background: 'none', border: 'none', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', cursor: 'pointer' }}>
               <ShieldAlert size={14} /> ブロック
