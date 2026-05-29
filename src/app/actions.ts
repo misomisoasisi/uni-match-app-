@@ -39,15 +39,6 @@ function calculateChar(tags: string): string {
   }
   return "マイペース学生";
 }
-  const cookieStore = await cookies();
-  cookieStore.set('auth_user_id', userId.toString(), {
-    httpOnly: true,
-    secure: false, // IPアドレスアクセスなどのため、開発・テスト中はfalseを推奨
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7 // 1週間有効にする
-  });
-}
 
 export async function loginWithEmail(email: string, pass: string) {
   const user = await prisma.user.findUnique({ where: { email } });
