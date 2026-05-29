@@ -805,3 +805,49 @@ export async function reportUser(reportedId: number, reason: string) {
   
   return { success: true };
 }
+
+export async function getBlockedUsers() {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) throw new Error("Unauthorized");
+  const blockerId = parseInt(authCookie.value);
+  if (isNaN(blockerId)) throw new Error("Unauthorized");
+
+  const blocks = await prisma.block.findMany({
+    where: { blockerId },
+    include: {
+      blocked: {
+        select: {
+          id: true,
+          name: true,
+          dept: true,
+          color: true,
+          feature: true
+        }
+      }
+    }
+  });
+
+  return blocks.map(b => b.blocked);
+}
+
+export async function unblockUser(blockedId: number) {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth_user_id');
+  if (!authCookie) throw new Error("Unauthorized");
+  const blockerId = parseInt(authCookie.value);
+  if (isNaN(blockerId)) throw new Error("Unauthorized");
+
+  await prisma.block.delete({
+    where: {
+      blockerId_blockedId: {
+        blockerId,
+        blockedId
+      }
+    }
+  });
+
+  revalidatePath("/");
+  revalidatePath("/profile");
+  return { success: true };
+}

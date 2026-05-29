@@ -1,7 +1,6 @@
 import prisma from "@/lib/prisma";
 import ProfileForm from "./ProfileForm";
-import LogoutButton from "./LogoutButton";
-import HelpModalButton from "./HelpModalButton";
+import SettingsSection from "./SettingsSection";
 import { getCurrentUserId } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
@@ -30,8 +29,7 @@ export default async function ProfilePage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '2rem' }}>
       <ProfileForm initialProfile={myUser} meetsCount={meetsCount} />
-      <HelpModalButton />
-      <LogoutButton />
+      <SettingsSection />
     </div>
   );
 }
